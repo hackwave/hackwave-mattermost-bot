@@ -16,8 +16,8 @@ func main() {
 	fmt.Println("==============================")
 	app = app.LoadConfiguration("./bot.yaml")
 	fmt.Println("[SERVER] Connecting to server with bot named: ", app.Bot.Username)
-	app.Bot.Server = app.Bot.Server.Connect(app.Bot.Email, app.Bot.Password)
 	app.HandleSignals()
+	app.Bot.Server = app.Bot.Server.Connect(app.Bot.Email, app.Bot.Password)
 	app.Bot.UpdateServerProfile()
 	app.Bot.SendDebugMessage("[BOT] "+app.Bot.Username+" in DEBUG MODE has joined the channel.", "")
 
