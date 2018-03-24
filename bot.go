@@ -47,23 +47,20 @@ func (self Bot) HandleWebSocketResponse(event *model.WebSocketEvent) {
 }
 
 func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
-	// If this isn't the debugging channel then lets ingore it
-	if event.Broadcast != nil && event.Broadcast.ChannelId != self.Server.DebugChannel.Id {
-		return
-	}
-
-	// Lets only reponded to messaged posted events
-	if event.Broadcast != nil && event.Event != model.WEBSOCKET_EVENT_POSTED {
-		return
-	}
-
 	//fmt.Println("\t", event.Data["post"].(string))
+	if event.Broadcast.ChannelId != self.Server.DebugChannel.Id {
+		return
+	}
+	if event.Event != model.WEBSOCKET_EVENT_POSTED {
+		return
+	}
 
 	post := model.PostFromJson(strings.NewReader(event.Data["post"].(string)))
 	if post != nil {
 		if post.UserId == self.Account.Id {
 			return
 		}
+
 		// Cache users
 		var user *model.User
 		if self.Server.Users[post.UserId] == nil {
@@ -74,6 +71,8 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 		}
 
 		fmt.Println("\t(CHAT)[", user.Username, "]", post.Message)
+
+		// TODO: Configure this using a plugin type system that can be defined from the cli
 
 		// if you see any word matching 'alive' then respond
 		if matched, _ := regexp.MatchString(`(?:^|\W)alive(?:$|\W)`, post.Message); matched {
@@ -99,6 +98,4 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 			return
 		}
 	}
-
-	self.SendDebugMessage("I did not understand you!", post.Id)
 }

@@ -26,19 +26,16 @@ func main() {
 	go func() {
 		for {
 			select {
-			case response := <-app.Bot.Server.WSClient.EventChannel:
-				app.Bot.HandleWebSocketResponse(response)
+			case event := <-app.Bot.Server.WSClient.EventChannel:
+				app.Bot.HandleWebSocketResponse(event)
 			}
 		}
 	}()
-	shell := ishell.New()
 
-	// display welcome info.
+	shell := ishell.New()
 	shell.Println(">>> Opening Chat Interface")
 	shell.Println(">>>   Enter manual chat messages that will be posted by the bot")
 	shell.Println(">>>   send {message you want to send as the bot}")
-
-	// register a function for "greet" command.
 	shell.AddCmd(&ishell.Cmd{
 		Name: "send",
 		Help: "send message",
@@ -50,7 +47,5 @@ func main() {
 			}
 		},
 	})
-
-	// run shell
 	shell.Run()
 }
