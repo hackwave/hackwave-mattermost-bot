@@ -17,6 +17,7 @@ type Bot struct {
 	Username       string `yaml:"display_name"`
 	FirstName      string `yaml:"first_name"`
 	LastName       string `yaml:"last_name"`
+	ActiveChannel  *model.Channel
 	RegexFunctions map[string]*RegexFunction
 }
 
@@ -55,7 +56,17 @@ func (self Bot) AddShellCommand(cmd *ishell.Cmd) {
 	self.Shell.AddCmd(cmd)
 }
 
-func (self Bot) SendMessage(channelName, message, replyToId string) bool {
+func (self Bot) SendMessage(message, replyToId string) bool {
+	fmt.Println("\t(CHAT)[", self.Username, "]", message)
+	post := &model.Post{
+		ChannelId: self.ActiveChannel.Id,
+		Message:   message,
+		RootId:    replyToId,
+	}
+	return (self.Server.SendPost(post))
+}
+
+func (self Bot) SendMessageToChannel(channelName, message, replyToId string) bool {
 	fmt.Println("\t(CHAT)[", self.Username, "]", message)
 	channel := self.Server.GetChannel(channelName)
 	post := &model.Post{
@@ -108,6 +119,8 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 	if event.Event != model.WEBSOCKET_EVENT_POSTED {
 		return
 	}
+
+	// TODO: Bot is not filtering out own messages
 
 	post := model.PostFromJson(strings.NewReader(event.Data["post"].(string)))
 	if post != nil {
