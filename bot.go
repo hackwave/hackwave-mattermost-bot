@@ -17,7 +17,7 @@ type Bot struct {
 	Username       string `yaml:"display_name"`
 	FirstName      string `yaml:"first_name"`
 	LastName       string `yaml:"last_name"`
-	RegexFunctions map[string]RegexFunction
+	RegexFunctions map[string]*RegexFunction
 }
 
 type RegexFunction struct {
@@ -82,10 +82,10 @@ func (self Bot) SendDebugMessage(message, replyToId string) bool {
 
 func (self Bot) RegisterHook(regexFunction RegexFunction) Bot {
 	if self.RegexFunctions == nil {
-		self.RegexFunctions = make(map[string]RegexFunction)
+		self.RegexFunctions = make(map[string]*RegexFunction)
 	}
 
-	self.RegexFunctions[regexFunction.Name] = regexFunction
+	self.RegexFunctions[regexFunction.Name] = &regexFunction
 	return self
 }
 
@@ -126,33 +126,13 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 
 		fmt.Println("\t(CHAT)[", user.Username, "]", post.Message)
 
-		// TODO: Configure this using a plugin type system that can be defined from the cli
 		fmt.Println("[BOT] Checking", len(self.RegexFunctions), "regex functions.")
 		for _, regexFunction := range self.RegexFunctions {
-			fmt.Println("[BOT] Registering REGEX FUNCTION:", regexFunction.Name)
 			if matched, _ := regexp.MatchString(regexFunction.Regex, post.Message); matched {
+				fmt.Println("[BOT] MATCHED regex function:", regexFunction.Name)
 				regexFunction.Function()
 				return
 			}
 		}
-
-		// if you see any word matching 'alive' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)alive(?:$|\W)`, post.Message); matched {
-			self.SendDebugMessage("Yes I'm running", post.Id)
-			return
-		}
-
-		// if you see any word matching 'up' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)up(?:$|\W)`, post.Message); matched {
-			self.SendDebugMessage("Yes I'm running", post.Id)
-			return
-		}
-
-		// if you see any word matching 'running' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)running(?:$|\W)`, post.Message); matched {
-			self.SendDebugMessage("Yes I'm running", post.Id)
-			return
-		}
-
 	}
 }

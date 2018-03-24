@@ -1,16 +1,17 @@
+debug: true
 bot:
-  email: "bot@email.tld"
+  email: "email@host.tld"
   password: "password"
   display_name: "bot"
   first_name: "johnny"
   last_name: "6"
   server:
-      server_type: "Mattermost"
-      host: "wormhole.chat"
-      https: true
-      wss: true
-      channels:
-        - team_name: "team"
-          name: "town-square"
-        - team_name: "team"
-          name: "bots"
+    server_type: "Mattermost"
+    host: "wormhole.chat"
+    https: true
+    wss: true
+    team: "team"
+    channels:
+      - name: "town-square"
+      - name: "bots"
+      - name: "headlines"
