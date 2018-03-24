@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/abiosoft/ishell"
 	bot "github.com/hackwave/hackwave-mattermost-bot"
 )
 
@@ -29,6 +31,26 @@ func main() {
 			}
 		}
 	}()
-	// Hold open function forever
-	select {}
+	shell := ishell.New()
+
+	// display welcome info.
+	shell.Println(">>> Opening Chat Interface")
+	shell.Println(">>>   Enter manual chat messages that will be posted by the bot")
+	shell.Println(">>>   send {message you want to send as the bot}")
+
+	// register a function for "greet" command.
+	shell.AddCmd(&ishell.Cmd{
+		Name: "send",
+		Help: "send message",
+		Func: func(c *ishell.Context) {
+			if len(c.Args) > 0 {
+				app.Bot.SendDebugMessage(strings.Join(c.Args, " "), "")
+			} else {
+				fmt.Println("[Error] No message provided, nothing sent.")
+			}
+		},
+	})
+
+	// run shell
+	shell.Run()
 }
