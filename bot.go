@@ -20,61 +20,6 @@ type Bot struct {
 	LastName    string `yaml:"-"`
 }
 
-var client *model.Client4
-var webSocketClient *model.WebSocketClient
-
-var botUser *model.User
-var botTeam *model.Team
-var debuggingChannel *model.Channel
-
-func MakeSureServerIsRunning() {
-	if props, resp := client.GetOldClientConfig(""); resp.Error != nil {
-		println("There was a problem pinging the Mattermost server.  Are you sure it's running?")
-		PrintError(resp.Error)
-		os.Exit(1)
-	} else {
-		println("Server detected and is running version " + props["Version"])
-	}
-}
-
-func LoginAsTheBotUser() {
-	if user, resp := client.Login(USER_EMAIL, USER_PASSWORD); resp.Error != nil {
-		println("There was a problem logging into the Mattermost server.  Are you sure ran the setup steps from the README.md?")
-		PrintError(resp.Error)
-		os.Exit(1)
-	} else {
-		botUser = user
-	}
-}
-
-func UpdateTheBotUserIfNeeded() {
-	if botUser.FirstName != USER_FIRST || botUser.LastName != USER_LAST || botUser.Username != USER_NAME {
-		botUser.FirstName = USER_FIRST
-		botUser.LastName = USER_LAST
-		botUser.Username = USER_NAME
-
-		if user, resp := client.UpdateUser(botUser); resp.Error != nil {
-			println("We failed to update the Sample Bot user")
-			PrintError(resp.Error)
-			os.Exit(1)
-		} else {
-			botUser = user
-			println("Looks like this might be the first run so we've updated the bots account settings")
-		}
-	}
-}
-
-func FindBotTeam() {
-	if team, resp := client.GetTeamByName(TEAM_NAME, ""); resp.Error != nil {
-		println("We failed to get the initial load")
-		println("or we do not appear to be a member of the team '" + TEAM_NAME + "'")
-		PrintError(resp.Error)
-		os.Exit(1)
-	} else {
-		botTeam = team
-	}
-}
-
 func CreateBotDebuggingChannelIfNeeded() {
 	if rchannel, resp := client.GetChannelByName(CHANNEL_LOG_NAME, botTeam.Id, ""); resp.Error != nil {
 		println("We failed to get the channels")
