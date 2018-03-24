@@ -6,6 +6,13 @@ import (
 	"github.com/mattermost/mattermost-server/model"
 )
 
+type ProtocolType int
+
+const (
+	HTTPServer ProtocolType = iota
+	WSServer
+)
+
 type Server struct {
 	SeverType    string `yaml:"server_type"`
 	Host         string `yaml:"host"`
@@ -15,6 +22,14 @@ type Server struct {
 	WSClient     *model.WebSocketClient
 	DebugChannel *model.Channel
 	Channels     []Channel `yaml:"channels"`
+}
+
+func (self Server) Connect(login, password string) Server {
+	self.HTTPClient = model.NewAPIv4Client(self.ServerAddress(HTTPServer))
+	self.Ping()
+	self.Login(login, password)
+
+	return self
 }
 
 func (self Server) ServerAddress(protocolType ProtocolType) string {
