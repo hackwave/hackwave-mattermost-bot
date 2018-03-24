@@ -9,18 +9,16 @@ import (
 	"github.com/mattermost/mattermost-server/model"
 )
 
-const (
-	SAMPLE_NAME = "Mattermost Bot Sample"
-
-	USER_EMAIL    = "bot@example.com"
-	USER_PASSWORD = "password1"
-	USER_NAME     = "samplebot"
-	USER_FIRST    = "Sample"
-	USER_LAST     = "Bot"
-
-	TEAM_NAME        = "botsample"
-	CHANNEL_LOG_NAME = "debugging-for-sample-bot"
-)
+type Bot struct {
+	Server      `yaml:"server"`
+	Account     *model.User
+	Team        *model.Team
+	Email       string `yaml:"email"`
+	Password    string `yaml:"password"`
+	DisplayName string `yaml:"display_name"`
+	FirstName   string `yaml:"-"`
+	LastName    string `yaml:"-"`
+}
 
 var client *model.Client4
 var webSocketClient *model.WebSocketClient
@@ -28,59 +26,6 @@ var webSocketClient *model.WebSocketClient
 var botUser *model.User
 var botTeam *model.Team
 var debuggingChannel *model.Channel
-
-// Documentation for the Go driver can be found
-// at https://godoc.org/github.com/mattermost/platform/model#Client
-func main() {
-	println(SAMPLE_NAME)
-
-	SetupGracefulShutdown()
-
-	client = model.NewAPIv4Client("http://localhost:8065")
-
-	// Lets test to see if the mattermost server is up and running
-	MakeSureServerIsRunning()
-
-	// lets attempt to login to the Mattermost server as the bot user
-	// This will set the token required for all future calls
-	// You can get this token with client.AuthToken
-	LoginAsTheBotUser()
-
-	// If the bot user doesn't have the correct information lets update his profile
-	UpdateTheBotUserIfNeeded()
-
-	// Lets find our bot team
-	FindBotTeam()
-
-	// This is an important step.  Lets make sure we use the botTeam
-	// for all future web service requests that require a team.
-	//client.SetTeamId(botTeam.Id)
-
-	// Lets create a bot channel for logging debug messages into
-	CreateBotDebuggingChannelIfNeeded()
-	SendMsgToDebuggingChannel("_"+SAMPLE_NAME+" has **started** running_", "")
-
-	// Lets start listening to some channels via the websocket!
-	webSocketClient, err := model.NewWebSocketClient4("ws://localhost:8065", client.AuthToken)
-	if err != nil {
-		println("We failed to connect to the web socket")
-		PrintError(err)
-	}
-
-	webSocketClient.Listen()
-
-	go func() {
-		for {
-			select {
-			case resp := <-webSocketClient.EventChannel:
-				HandleWebSocketResponse(resp)
-			}
-		}
-	}()
-
-	// You can block forever with
-	select {}
-}
 
 func MakeSureServerIsRunning() {
 	if props, resp := client.GetOldClientConfig(""); resp.Error != nil {
