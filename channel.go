@@ -7,5 +7,5 @@ type Channel struct {
 	Name        string `yaml:"name"`
 	DisplayName string `yaml:"display_name"`
 	Description string `yaml:"description"`
-	Debug       string `yaml:"debug"`
+	Debug       bool   `yaml:"debug"`
 }

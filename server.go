@@ -18,18 +18,69 @@ type Server struct {
 	Host         string `yaml:"host"`
 	HTTPS        bool   `yaml:"https"`
 	WSS          bool   `yaml:"wss"`
+	Account      *model.User
 	HTTPClient   *model.Client4
 	WSClient     *model.WebSocketClient
+	TeamName     string      `yaml:"team"`
+	Team         *model.Team `yaml:"-"`
 	DebugChannel *model.Channel
 	Channels     []Channel `yaml:"channels"`
+	Users        map[string]*model.User
+}
+
+func (self Server) GetDebugChannel() *model.Channel {
+	var debugChannelName string
+	for _, channel := range self.Channels {
+		if channel.Debug {
+			debugChannelName = channel.Name
+		}
+	}
+	if debugChannelName == "" {
+		debugChannelName = "bots"
+	}
+
+	debugChannel, response := self.HTTPClient.GetChannelByName(debugChannelName, self.Team.Id, "")
+	if response.Error != nil {
+		if self.CreateChannel(debugChannelName, "Bot Testing", "Bot debug channel used for testing bots") {
+			debugChannel, response := self.HTTPClient.GetChannelByName(debugChannelName, self.Team.Id, "")
+			if response.Error != nil {
+				FatalError("[Fatal Error] Failed to join newly created debug channel", nil)
+			} else {
+				self.DebugChannel = debugChannel
+			}
+		} else {
+			FatalError("[Fatal Error] Failed to create debug channel", nil)
+			return nil
+		}
+	} else {
+		self.DebugChannel = debugChannel
+	}
+	return debugChannel
+
+}
+
+func (self Server) JoinChannels() Server {
+	for _, channel := range self.Channels {
+		channel.API = self.GetChannel(channel.Name)
+	}
+	return self
 }
 
 func (self Server) Connect(login, password string) Server {
 	self.HTTPClient = model.NewAPIv4Client(self.ServerAddress(HTTPServer))
 	self.Ping()
-	self.Login(login, password)
-
-	return self
+	fmt.Println("[SERVER] Logging into server as:", login)
+	self.Account = self.Login(login, password)
+	fmt.Println("[SERVER] Logged into to server and obtained AuthToken:", self.HTTPClient.AuthToken)
+	self.Team = self.GetTeam(self.TeamName)
+	fmt.Println("[SERVER] Team ID:", self.Team.Id)
+	fmt.Println("[SERVER] Connecting to wss address:", self.ServerAddress(WSServer))
+	self.WSClient, _ = model.NewWebSocketClient4(self.ServerAddress(WSServer), self.HTTPClient.AuthToken)
+	self.WSClient.Listen()
+	self.DebugChannel = self.GetDebugChannel()
+	fmt.Println("[SERVER] Using the following channel for debugging:", self.DebugChannel.Name)
+	self.Users = make(map[string]*model.User)
+	return (self.JoinChannels())
 }
 
 func (self Server) ServerAddress(protocolType ProtocolType) string {
@@ -51,6 +102,14 @@ func (self Server) ServerAddress(protocolType ProtocolType) string {
 	return ""
 }
 
+func (self Server) GetUser(userId string) *model.User {
+	user, response := self.HTTPClient.GetUser(userId, "")
+	if response.Error != nil {
+		RuntimeError("Unable to get user", response.Error)
+	}
+	return user
+}
+
 func (self Server) GetTeam(teamName string) (team *model.Team) {
 	team, response := self.HTTPClient.GetTeamByName(teamName, "")
 	if response.Error != nil {
@@ -59,15 +118,22 @@ func (self Server) GetTeam(teamName string) (team *model.Team) {
 	return team
 }
 
-func (self Server) GetChannel(teamId, channelName string) (channel *model.Channel) {
-	channel, response := self.HTTPClient.GetChannelByName(channelName, teamId, "")
+func (self Server) GetChannel(channelName string) (channel *model.Channel) {
+	channel, response := self.HTTPClient.GetChannelByName(channelName, self.Team.Id, "")
 	if response.Error != nil {
 		RuntimeError(UNABLE_TO_CREATE_OR_JOIN_CHANNEL, response.Error)
 	}
 	return channel
 }
 
-func (self Server) CreateChannel(channel *model.Channel) bool {
+func (self Server) CreateChannel(channelName, displayName, channelPurpose string) bool {
+	channel := &model.Channel{
+		Name:        channelName,
+		DisplayName: displayName,
+		Purpose:     channelPurpose,
+		Type:        model.CHANNEL_OPEN,
+		TeamId:      self.Team.Id,
+	}
 	if _, response := self.HTTPClient.CreateChannel(channel); response.Error != nil {
 		RuntimeError(UNABLE_TO_CREATE_CHANNEL, response.Error)
 		return false

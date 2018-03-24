@@ -1,8 +1,7 @@
 package bot
 
 import (
-	"os"
-	"os/signal"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -10,125 +9,96 @@ import (
 )
 
 type Bot struct {
-	Server      `yaml:"server"`
-	Account     *model.User
-	Team        *model.Team
-	Email       string `yaml:"email"`
-	Password    string `yaml:"password"`
-	DisplayName string `yaml:"display_name"`
-	FirstName   string `yaml:"-"`
-	LastName    string `yaml:"-"`
+	Server    `yaml:"server"`
+	Email     string `yaml:"email"`
+	Password  string `yaml:"password"`
+	Username  string `yaml:"display_name"`
+	FirstName string `yaml:"first_name"`
+	LastName  string `yaml:"last_name"`
 }
 
-func CreateBotDebuggingChannelIfNeeded() {
-	if rchannel, resp := client.GetChannelByName(CHANNEL_LOG_NAME, botTeam.Id, ""); resp.Error != nil {
-		println("We failed to get the channels")
-		PrintError(resp.Error)
+func (self Bot) SendMessage(channelName, message, replyToId string) bool {
+	fmt.Println("\t(CHAT)[", self.Username, "]", message)
+	channel := self.Server.GetChannel(channelName)
+	post := &model.Post{
+		ChannelId: channel.Id,
+		Message:   message,
+		RootId:    replyToId,
+	}
+	return (self.Server.SendPost(post))
+}
+
+func (self Bot) SendDebugMessage(message, replyToId string) bool {
+	fmt.Println("\t(CHAT)[", self.Username, "]", message)
+	if self.Server.DebugChannel != nil {
+		post := &model.Post{
+			ChannelId: self.Server.DebugChannel.Id,
+			Message:   message,
+			RootId:    replyToId,
+		}
+		return (self.Server.SendPost(post))
 	} else {
-		debuggingChannel = rchannel
-		return
-	}
-
-	// Looks like we need to create the logging channel
-	channel := &model.Channel{}
-	channel.Name = CHANNEL_LOG_NAME
-	channel.DisplayName = "Debugging For Sample Bot"
-	channel.Purpose = "This is used as a test channel for logging bot debug messages"
-	channel.Type = model.CHANNEL_OPEN
-	channel.TeamId = botTeam.Id
-	if rchannel, resp := client.CreateChannel(channel); resp.Error != nil {
-		println("We failed to create the channel " + CHANNEL_LOG_NAME)
-		PrintError(resp.Error)
-	} else {
-		debuggingChannel = rchannel
-		println("Looks like this might be the first run so we've created the channel " + CHANNEL_LOG_NAME)
+		return false
 	}
 }
 
-func SendMsgToDebuggingChannel(msg string, replyToId string) {
-	post := &model.Post{}
-	post.ChannelId = debuggingChannel.Id
-	post.Message = msg
-
-	post.RootId = replyToId
-
-	if _, resp := client.CreatePost(post); resp.Error != nil {
-		println("We failed to send a message to the logging channel")
-		PrintError(resp.Error)
-	}
+func (self Bot) HandleWebSocketResponse(event *model.WebSocketEvent) {
+	self.HandleMessageFromDebugChannel(event)
 }
 
-func HandleWebSocketResponse(event *model.WebSocketEvent) {
-	HandleMsgFromDebuggingChannel(event)
-}
-
-func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
+func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 	// If this isn't the debugging channel then lets ingore it
-	if event.Broadcast.ChannelId != debuggingChannel.Id {
+	if event.Broadcast != nil && event.Broadcast.ChannelId != self.Server.DebugChannel.Id {
 		return
 	}
 
 	// Lets only reponded to messaged posted events
-	if event.Event != model.WEBSOCKET_EVENT_POSTED {
+	if event.Broadcast != nil && event.Event != model.WEBSOCKET_EVENT_POSTED {
 		return
 	}
 
-	println("responding to debugging channel msg")
+	//fmt.Println("\t", event.Data["post"].(string))
 
 	post := model.PostFromJson(strings.NewReader(event.Data["post"].(string)))
 	if post != nil {
-
-		// ignore my events
-		if post.UserId == botUser.Id {
+		if post.UserId == self.Account.Id {
 			return
 		}
+		// Cache users
+		var user *model.User
+		if self.Server.Users[post.UserId] == nil {
+			user = self.Server.GetUser(post.UserId)
+			self.Server.Users[post.UserId] = user
+		} else {
+			user = self.Server.Users[post.UserId]
+		}
+
+		fmt.Println("\t(CHAT)[", user.Username, "]", post.Message)
 
 		// if you see any word matching 'alive' then respond
 		if matched, _ := regexp.MatchString(`(?:^|\W)alive(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
+			self.SendDebugMessage("Yes I'm running", post.Id)
 			return
 		}
 
 		// if you see any word matching 'up' then respond
 		if matched, _ := regexp.MatchString(`(?:^|\W)up(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
+			self.SendDebugMessage("Yes I'm running", post.Id)
 			return
 		}
 
 		// if you see any word matching 'running' then respond
 		if matched, _ := regexp.MatchString(`(?:^|\W)running(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
+			self.SendDebugMessage("Yes I'm running", post.Id)
 			return
 		}
 
 		// if you see any word matching 'hello' then respond
 		if matched, _ := regexp.MatchString(`(?:^|\W)hello(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
+			self.SendDebugMessage("Yes I'm running", post.Id)
 			return
 		}
 	}
 
-	SendMsgToDebuggingChannel("I did not understand you!", post.Id)
-}
-
-func PrintError(err *model.AppError) {
-	println("\tError Details:")
-	println("\t\t" + err.Message)
-	println("\t\t" + err.Id)
-	println("\t\t" + err.DetailedError)
-}
-
-func SetupGracefulShutdown() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			if webSocketClient != nil {
-				webSocketClient.Close()
-			}
-
-			SendMsgToDebuggingChannel("_"+SAMPLE_NAME+" has **stopped** running_", "")
-			os.Exit(0)
-		}
-	}()
+	self.SendDebugMessage("I did not understand you!", post.Id)
 }
