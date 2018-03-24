@@ -6,6 +6,7 @@ import (
 
 	cli "github.com/hackwave/cli-framework"
 	bot "github.com/hackwave/hackwave-mattermost-bot"
+	"github.com/mattermost/mattermost-server/model"
 )
 
 func main() {
@@ -36,8 +37,8 @@ func main() {
 		app.Bot = app.Bot.RegisterHook(bot.RegexFunction{
 			Name:  "HelloResponder",
 			Regex: `(?:^|\W)hello(?:$|\W)`,
-			Function: func() {
-				app.Bot.SendDebugMessage("hello dawg", "")
+			Function: func(post *model.Post) {
+				app.Bot.SendMessageToChannel("hello dawg, you send the following post :"+post.Message, "")
 			},
 		})
 

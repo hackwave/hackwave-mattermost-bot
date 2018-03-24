@@ -24,7 +24,7 @@ type Bot struct {
 type RegexFunction struct {
 	Name     string
 	Regex    string
-	Function func()
+	Function func(post *model.Post)
 }
 
 func (self Bot) Start() {
@@ -56,6 +56,8 @@ func (self Bot) AddShellCommand(cmd *ishell.Cmd) {
 	self.Shell.AddCmd(cmd)
 }
 
+// TODO: The idea for this is that you would use it in shell mode, and allow the user to select
+// active channels the shell is watching
 func (self Bot) SendMessage(message, replyToId string) bool {
 	fmt.Println("\t(CHAT)[", self.Username, "]", message)
 	post := &model.Post{
@@ -143,7 +145,7 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 		for _, regexFunction := range self.RegexFunctions {
 			if matched, _ := regexp.MatchString(regexFunction.Regex, post.Message); matched {
 				fmt.Println("[BOT] MATCHED regex function:", regexFunction.Name)
-				regexFunction.Function()
+				regexFunction.Function(post)
 				return
 			}
 		}

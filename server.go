@@ -16,18 +16,19 @@ const (
 )
 
 type Server struct {
-	SeverType    string `yaml:"server_type"`
-	Host         string `yaml:"host"`
-	HTTPS        bool   `yaml:"https"`
-	WSS          bool   `yaml:"wss"`
-	Account      *model.User
-	HTTPClient   *model.Client4
-	WSClient     *model.WebSocketClient
-	TeamName     string      `yaml:"team"`
-	Team         *model.Team `yaml:"-"`
-	DebugChannel *model.Channel
-	Channels     []Channel `yaml:"channels"`
-	Users        map[string]*model.User
+	SeverType      string `yaml:"server_type"`
+	Host           string `yaml:"host"`
+	HTTPS          bool   `yaml:"https"`
+	WSS            bool   `yaml:"wss"`
+	Account        *model.User
+	HTTPClient     *model.Client4
+	WSClient       *model.WebSocketClient
+	TeamName       string      `yaml:"team"`
+	Team           *model.Team `yaml:"-"`
+	DebugChannel   *model.Channel
+	Channels       []Channel `yaml:"channels"`
+	CachedUsers    map[string]*model.User
+	CachedChannels map[string]*model.Channel
 }
 
 func (self Server) GetDebugChannel() *model.Channel {
