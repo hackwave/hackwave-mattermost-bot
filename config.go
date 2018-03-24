@@ -17,5 +17,6 @@ func (self Application) LoadConfiguration(configPath string) Application {
 	if err != nil {
 		FatalError(UNABLE_TO_PARSE_CONFIG_FILE, err)
 	}
+	fmt.Println("[SERVER] Connecting to server with bot named: ", self.Bot.Username)
 	return self
 }

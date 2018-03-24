@@ -2,6 +2,8 @@ package bot
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 
 	"github.com/mattermost/mattermost-server/model"
 )
@@ -80,6 +82,7 @@ func (self Server) Connect(login, password string) Server {
 	self.DebugChannel = self.GetDebugChannel()
 	fmt.Println("[SERVER] Using the following channel for debugging:", self.DebugChannel.Name)
 	self.Users = make(map[string]*model.User)
+	self.HandleSignals()
 	return (self.JoinChannels())
 }
 
@@ -175,4 +178,17 @@ func (self Server) UpdateAccount(account *model.User) (savedAccount *model.User)
 		FatalError(UNABLE_TO_UPDATE_PROFILE, response.Error)
 	}
 	return savedAccount
+}
+
+func (self Server) HandleSignals() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			if self.WSClient != nil {
+				self.WSClient.Close()
+			}
+			os.Exit(0)
+		}
+	}()
 }

@@ -5,16 +5,54 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/abiosoft/ishell"
 	"github.com/mattermost/mattermost-server/model"
 )
 
 type Bot struct {
-	Server    `yaml:"server"`
-	Email     string `yaml:"email"`
-	Password  string `yaml:"password"`
-	Username  string `yaml:"display_name"`
-	FirstName string `yaml:"first_name"`
-	LastName  string `yaml:"last_name"`
+	Server         `yaml:"server"`
+	Shell          *ishell.Shell
+	Email          string `yaml:"email"`
+	Password       string `yaml:"password"`
+	Username       string `yaml:"display_name"`
+	FirstName      string `yaml:"first_name"`
+	LastName       string `yaml:"last_name"`
+	RegexFunctions map[string]RegexFunction
+}
+
+type RegexFunction struct {
+	Name     string
+	Regex    string
+	Function func()
+}
+
+func (self Bot) Start() {
+	self.SendDebugMessage("[BOT] "+self.Username+" in DEBUG MODE has joined the channel.", "")
+	self.UpdateServerProfile()
+	self.HandleWS()
+}
+
+func (self Bot) OpenShell() {
+	self.Shell = ishell.New()
+	self.Shell.Println(">>> Opening Chat Interface")
+	self.Shell.Println(">>>   Enter manual chat messages that will be posted by the bot")
+	self.Shell.Println(">>>   send {message you want to send as the bot}")
+	self.Shell.AddCmd(&ishell.Cmd{
+		Name: "send",
+		Help: "send message",
+		Func: func(c *ishell.Context) {
+			if len(c.Args) > 0 {
+				self.SendDebugMessage(strings.Join(c.Args, " "), "")
+			} else {
+				fmt.Println("[Error] No message provided, nothing sent.")
+			}
+		},
+	})
+	self.Shell.Run()
+}
+
+func (self Bot) AddShellCommand(cmd *ishell.Cmd) {
+	self.Shell.AddCmd(cmd)
 }
 
 func (self Bot) SendMessage(channelName, message, replyToId string) bool {
@@ -42,8 +80,24 @@ func (self Bot) SendDebugMessage(message, replyToId string) bool {
 	}
 }
 
-func (self Bot) HandleWebSocketResponse(event *model.WebSocketEvent) {
-	self.HandleMessageFromDebugChannel(event)
+func (self Bot) RegisterHook(regexFunction RegexFunction) Bot {
+	if self.RegexFunctions == nil {
+		self.RegexFunctions = make(map[string]RegexFunction)
+	}
+
+	self.RegexFunctions[regexFunction.Name] = regexFunction
+	return self
+}
+
+func (self Bot) HandleWS() {
+	go func() {
+		for {
+			select {
+			case event := <-self.Server.WSClient.EventChannel:
+				self.HandleMessageFromDebugChannel(event)
+			}
+		}
+	}()
 }
 
 func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
@@ -73,6 +127,14 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 		fmt.Println("\t(CHAT)[", user.Username, "]", post.Message)
 
 		// TODO: Configure this using a plugin type system that can be defined from the cli
+		fmt.Println("[BOT] Checking", len(self.RegexFunctions), "regex functions.")
+		for _, regexFunction := range self.RegexFunctions {
+			fmt.Println("[BOT] Registering REGEX FUNCTION:", regexFunction.Name)
+			if matched, _ := regexp.MatchString(regexFunction.Regex, post.Message); matched {
+				regexFunction.Function()
+				return
+			}
+		}
 
 		// if you see any word matching 'alive' then respond
 		if matched, _ := regexp.MatchString(`(?:^|\W)alive(?:$|\W)`, post.Message); matched {
@@ -92,10 +154,5 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 			return
 		}
 
-		// if you see any word matching 'hello' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)hello(?:$|\W)`, post.Message); matched {
-			self.SendDebugMessage("Yes I'm running", post.Id)
-			return
-		}
 	}
 }
