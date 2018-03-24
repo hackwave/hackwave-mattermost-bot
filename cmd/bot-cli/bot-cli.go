@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+	bot "github.com/hackwave/hackwave-mattermost-bot"
 )
 
 func main() {
