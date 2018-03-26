@@ -84,6 +84,12 @@ func (self Server) Connect(login, password string) Server {
 	fmt.Println("[SERVER] Using the following channel for debugging:", self.DebugChannel.Name)
 	self.CachedUsers = make(map[string]*model.User)
 	self.CachedChannels = make(map[string]*model.Channel)
+	var updatedChannels []Channel
+	for _, channel := range self.Channels {
+		channel.API = self.GetChannel(channel.Name)
+		updatedChannels = append(updatedChannels, channel)
+	}
+	self.Channels = updatedChannels
 	self.HandleSignals()
 	fmt.Println("[SERVER] Connecting to server with bot named: ", login)
 	return (self.JoinChannels())

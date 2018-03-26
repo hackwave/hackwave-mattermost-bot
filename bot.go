@@ -42,12 +42,48 @@ func (self Bot) OpenShell() {
 	self.Shell.Println(">>> Opening Chat Interface")
 	self.Shell.Println(">>>   Enter manual chat messages that will be posted by the bot")
 	self.Shell.Println(">>>   send {message you want to send as the bot}")
+
+	self.ActiveChannel = self.Server.Channels[0].API
+	fmt.Println("[CONFIG] Active channel is now:", self.ActiveChannel.Name)
+
+	self.Shell.AddCmd(&ishell.Cmd{
+		Name: "list",
+		Help: "list available channels",
+		Func: func(c *ishell.Context) {
+			fmt.Println("\nChannels:")
+			for _, channel := range self.Server.Channels {
+				fmt.Println("  " + channel.Name)
+			}
+			fmt.Println("\n")
+		},
+	})
+	self.Shell.AddCmd(&ishell.Cmd{
+		Name: "channel",
+		Help: "select active channel to send messages to",
+		Func: func(c *ishell.Context) {
+			if len(c.Args) > 0 {
+				selected := false
+				for _, channel := range self.Server.Channels {
+					if channel.Name == c.Args[0] {
+						fmt.Println("[CONFIG] Active channel is now:", channel.Name)
+						self.ActiveChannel = channel.API
+						selected = true
+					}
+				}
+				if !selected {
+					fmt.Println("[CONFIG] Selected channel is not one of the available channels.")
+				}
+			} else {
+				fmt.Println("[Error] No channel supplied to set as active channel.")
+			}
+		},
+	})
 	self.Shell.AddCmd(&ishell.Cmd{
 		Name: "send",
 		Help: "send message",
 		Func: func(c *ishell.Context) {
 			if len(c.Args) > 0 {
-				self.SendDebugMessage(strings.Join(c.Args, " "), "")
+				self.SendMessage(strings.Join(c.Args, " "), "")
 			} else {
 				fmt.Println("[Error] No message provided, nothing sent.")
 			}
@@ -85,12 +121,10 @@ func (self Bot) SendMessageToChannelWithId(channelId, message, replyToId string)
 func (self Bot) SendMessageToChannelWithName(channelName, message, replyToId string) bool {
 	fmt.Println("\t(CHAT)[", self.Username, "]", message)
 	// Use Channel Caching
-	var channel *model.Channel
-	if self.Server.CachedChannels[channelName] == nil {
+	channel := self.Server.CachedChannels[channelName]
+	if channel == nil {
 		channel = self.Server.GetChannel(channelName)
 		self.Server.CachedChannels[channelName] = channel
-	} else {
-		channel = self.Server.CachedChannels[channelName]
 	}
 	post := &model.Post{
 		ChannelId: channel.Id,
@@ -128,23 +162,17 @@ func (self Bot) HandleWS() {
 		for {
 			select {
 			case event := <-self.Server.WSClient.EventChannel:
-				self.HandleMessageFromDebugChannel(event)
+				self.HandleMessageFromChannel(event)
 			}
 		}
 	}()
 }
 
-func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
-	//fmt.Println("\t", event.Data["post"].(string))
-	if event.Broadcast.ChannelId != self.Server.DebugChannel.Id {
-		return
-	}
+func (self Bot) HandleMessageFromChannel(event *model.WebSocketEvent) {
 	if event.Event != model.WEBSOCKET_EVENT_POSTED {
 		return
 	}
-
-	// TODO: Bot is not filtering out own messages
-
+	//fmt.Println("\t", event.Data["post"].(string))
 	post := model.PostFromJson(strings.NewReader(event.Data["post"].(string)))
 	if post != nil {
 		if post.UserId == self.Account.Id {
@@ -152,17 +180,26 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 		}
 
 		// Cache users
-		var user *model.User
-		if self.Server.CachedUsers[post.UserId] == nil {
+		user := self.Server.CachedUsers[post.UserId]
+		if user == nil {
 			user = self.Server.GetUser(post.UserId)
 			self.Server.CachedUsers[post.UserId] = user
-		} else {
-			user = self.Server.CachedUsers[post.UserId]
 		}
 
-		fmt.Println("\t(CHAT)[", user.Username, "]", post.Message)
+		// Use Channel Caching
+		channel := self.Server.CachedChannels[post.ChannelId]
+		if channel == nil {
+			for _, c := range self.Server.Channels {
+				if c.API.Id == post.ChannelId {
+					self.Server.CachedChannels[post.ChannelId] = c.API
+					channel = c.API
 
-		fmt.Println("[BOT] Checking", len(self.RegexFunctions), "regex functions.")
+				}
+			}
+		}
+		if user != nil && channel != nil {
+			fmt.Println("\t(CHAT)["+channel.Name+"]["+user.Username+"]", post.Message)
+		}
 		for _, regexFunction := range self.RegexFunctions {
 			if matched, _ := regexp.MatchString(regexFunction.Regex, post.Message); matched {
 				fmt.Println("[BOT] MATCHED regex function:", regexFunction.Name)
