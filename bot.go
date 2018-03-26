@@ -68,7 +68,17 @@ func (self Bot) SendMessage(message, replyToId string) bool {
 	return (self.Server.SendPost(post))
 }
 
-func (self Bot) SendMessageToChannel(channelName, message, replyToId string) bool {
+func (self Bot) SendMessageToChannelWithId(channelId, message, replyToId string) bool {
+	fmt.Println("\t(CHAT)[", self.Username, "]", message)
+	post := &model.Post{
+		ChannelId: channelId,
+		Message:   message,
+		RootId:    replyToId,
+	}
+	return (self.Server.SendPost(post))
+}
+
+func (self Bot) SendMessageToChannelWithName(channelName, message, replyToId string) bool {
 	fmt.Println("\t(CHAT)[", self.Username, "]", message)
 	// Use Channel Caching
 	var channel *model.Channel
