@@ -82,7 +82,8 @@ func (self Server) Connect(login, password string) Server {
 	self.WSClient.Listen()
 	self.DebugChannel = self.GetDebugChannel()
 	fmt.Println("[SERVER] Using the following channel for debugging:", self.DebugChannel.Name)
-	self.Users = make(map[string]*model.User)
+	self.CachedUsers = make(map[string]*model.User)
+	self.CachedChannels = make(map[string]*model.Channel)
 	self.HandleSignals()
 	return (self.JoinChannels())
 }

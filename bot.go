@@ -70,7 +70,14 @@ func (self Bot) SendMessage(message, replyToId string) bool {
 
 func (self Bot) SendMessageToChannel(channelName, message, replyToId string) bool {
 	fmt.Println("\t(CHAT)[", self.Username, "]", message)
-	channel := self.Server.GetChannel(channelName)
+	// Use Channel Caching
+	var channel *model.Channel
+	if self.Server.CachedChannels[channelName] == nil {
+		channel = self.Server.GetChannel(channelName)
+		self.Server.CachedChannels[channelName] = channel
+	} else {
+		channel = self.Server.CachedChannels[channelName]
+	}
 	post := &model.Post{
 		ChannelId: channel.Id,
 		Message:   message,
@@ -132,11 +139,11 @@ func (self Bot) HandleMessageFromDebugChannel(event *model.WebSocketEvent) {
 
 		// Cache users
 		var user *model.User
-		if self.Server.Users[post.UserId] == nil {
+		if self.Server.CachedUsers[post.UserId] == nil {
 			user = self.Server.GetUser(post.UserId)
-			self.Server.Users[post.UserId] = user
+			self.Server.CachedUsers[post.UserId] = user
 		} else {
-			user = self.Server.Users[post.UserId]
+			user = self.Server.CachedUsers[post.UserId]
 		}
 
 		fmt.Println("\t(CHAT)[", user.Username, "]", post.Message)
