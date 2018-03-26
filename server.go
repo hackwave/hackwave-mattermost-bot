@@ -85,7 +85,7 @@ func (self Server) Connect(login, password string) Server {
 	self.CachedUsers = make(map[string]*model.User)
 	self.CachedChannels = make(map[string]*model.Channel)
 	self.HandleSignals()
-	fmt.Println("[SERVER] Connecting to server with bot named: ", self.Bot.Username)
+	fmt.Println("[SERVER] Connecting to server with bot named: ", login)
 	return (self.JoinChannels())
 }
 

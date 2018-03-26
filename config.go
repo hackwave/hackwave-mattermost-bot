@@ -17,7 +17,7 @@ func (self Application) LoadConfiguration(configPath string) Application {
 	if err != nil {
 		FatalError(UNABLE_TO_PARSE_CONFIG_FILE, err)
 	}
-	if app.Debug {
+	if self.Debug {
 		fmt.Println("[CONFIG] Bot is in DEBUG mode.")
 	} else {
 		fmt.Println("[CONFIG] Bot is in NORMAL mode.")

@@ -27,8 +27,12 @@ type RegexFunction struct {
 	Function func(post *model.Post)
 }
 
-func (self Bot) Start() {
-	self.SendDebugMessage("[BOT] "+self.Username+" in DEBUG MODE has joined the channel.", "")
+func (self Bot) Start(debug bool) {
+	if debug {
+		self.SendDebugMessage("[BOT] "+self.Username+" in DEBUG MODE has joined the channel.", "")
+	} else {
+		self.SendDebugMessage("[BOT] "+self.Username+" in NORMAL MODE has joined the channel.", "")
+	}
 	self.UpdateServerProfile()
 	self.HandleWS()
 }

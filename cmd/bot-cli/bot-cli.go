@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"os"
 	"time"
 
@@ -49,6 +50,16 @@ func main() {
 		})
 
 		app.Bot = app.Bot.RegisterHook(bot.RegexFunction{
+			Name:  "AnnoyingRobot",
+			Regex: `robot`,
+			Function: func(post *model.Post) {
+				startOfSentence := []string{"meh,", "whatever,", "who cares,", "boring,", "", "", "", ""}
+				selectedStart := startOfSentence[rand.Intn(len(startOfSentence)-1)]
+				app.Bot.SendMessageToChannelWithId(post.ChannelId, selectedStart+" the japanese version was better", "")
+			},
+		})
+
+		app.Bot = app.Bot.RegisterHook(bot.RegexFunction{
 			Name:  "Help",
 			Regex: `^help$`,
 			Function: func(post *model.Post) {
@@ -58,10 +69,24 @@ func main() {
 				app.Bot.SendMessageToChannelWithId(post.ChannelId, dice.PLUGIN_HELP_COMMAND, "")
 				app.Bot.SendMessageToChannelWithId(post.ChannelId, dice.PLUGIN_HELP_TEXT, "")
 				app.Bot.SendMessageToChannelWithId(post.ChannelId, "", "")
+
+				var pluginsString string
+				var count int
+				for pluginName, _ := range app.Bot.RegexFunctions {
+					count++
+					if count == len(app.Bot.RegexFunctions) {
+						pluginsString = pluginsString + "**" + pluginName + "** "
+					} else {
+						pluginsString = pluginsString + "**" + pluginName + "**, "
+					}
+				}
+
+				app.Bot.SendMessageToChannelWithId(post.ChannelId, "*The following plugins are loaded:* "+pluginsString, "")
+
 			},
 		})
 
-		app.Bot.Start()
+		app.Bot.Start(app.Debug)
 		app.Bot.OpenShell()
 	}
 	ui.Run(os.Args)
